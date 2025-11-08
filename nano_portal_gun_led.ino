@@ -1,12 +1,23 @@
 #include <SoftwareSerial.h>
 #include <FastLED.h>
 
+// --- Пины JQ6500 --- 
+// можно изменить при необходимости
+#define JQ_TX 4   // TX Arduino → RX JQ6500 через 1кОм
+#define JQ_RX 5   // RX Arduino ← TX JQ6500
+
+// --- Пин LED ---
+#define LED_PIN 3
+
+// --- Пины кнопок ---
+#define BLUEBTN   6
+#define ORANGEBTN 7
+#define SONGBTN   8
+
 // ******************************************
 //        переменные и константы аудио
 // ******************************************
-// Пины JQ6500 (можно изменить при необходимости)
-#define JQ_TX 4   // TX Arduino → RX JQ6500 через 1кОм
-#define JQ_RX 5   // RX Arduino ← TX JQ6500
+#define JQ_VOLUME 30 // грокость JQ6500 <0-30>
 
 #define SND_FAKE        0 
 #define SND_POWER_UP    1
@@ -24,7 +35,6 @@ SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
 // ******************************************
 //         переменные и константы LED
 // ******************************************
-#define LED_PIN 3     // пин
 #define LED_NUM 13    // количество светодиодов (0 центр, 1-12 круг)
 
 #define LED_IDLE_MIN 10
@@ -44,11 +54,6 @@ LedEffect currentEffect = nullptr;
 // *******************************************
 //  переменные и константы кнопок и состояния
 // *******************************************
-// --- Пины кнопок ---
-#define BLUEBTN   6
-#define ORANGEBTN 7
-#define SONGBTN   8
-
 const uint8_t btn_pins[] =  {SONGBTN, BLUEBTN, ORANGEBTN};
 
 // FSM состояния
@@ -282,11 +287,10 @@ void setup() {
   }
 
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
-  FastLED.setBrightness(50);
-
+    
+  delay(1000); //пауза нужна для ожидания инициализации JQ6500
   jqReset();
-  setVolume(25);
-  delay(1000);
+  setVolume(JQ_VOLUME);
 }
 
 void loop() {
