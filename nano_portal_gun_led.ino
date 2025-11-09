@@ -17,7 +17,7 @@
 // ******************************************
 //        переменные и константы аудио
 // ******************************************
-#define JQ_VOLUME 30 // грокость JQ6500 <0-30>
+#define JQ_VOLUME 30 // громкость JQ6500 <0-30>
 
 #define SND_FAKE        0 
 #define SND_POWER_UP    1
@@ -100,7 +100,7 @@ void jqInit() {
 void jqReset() {
   uint8_t cmd[] = {0x7E, 0x02, 0x0C, 0xEF};
   sendJQCommand(cmd, sizeof(cmd));
-  delay(500);
+  delay(1200); //пауза нужна для ожидания инициализации JQ6500
 }
 
 void setVolume(uint8_t vol) {
@@ -288,7 +288,6 @@ void setup() {
 
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
     
-  delay(1000); //пауза нужна для ожидания инициализации JQ6500
   jqReset();
   setVolume(JQ_VOLUME);
 }
