@@ -21,6 +21,7 @@
 #define BLUEBTN   6
 #define ORANGEBTN 7
 #define SONGBTN   8
+#define SPEECHBTN 9
 ```
 
 
@@ -53,6 +54,11 @@
 const unsigned long snd_duration_ms[] = {0, 1358, 32809, 1332, 1488, 1776, 175046};
 ```
 
+Мелодии с фразами нужно занести в массив. Они будут проигрываться в случайном порядке
+
+```cpp
+const uint8_t snd_speech_sounds[] = {3, 4, 5};
+```
 
 ## Переменные и константы LED
 

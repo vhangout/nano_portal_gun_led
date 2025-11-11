@@ -14,6 +14,7 @@
 #define BLUEBTN   6
 #define ORANGEBTN 7
 #define SONGBTN   8
+#define SPEECHBTN 9
 
 // ******************************************
 //        переменные и константы аудио
@@ -29,6 +30,8 @@
 #define SND_SONG        6
 
 const unsigned long snd_duration_ms[] = {0, 1358, 32809, 1332, 1488, 1776, 175046};
+const uint8_t snd_speech_sounds[] = {3, 4, 5};
+int snd_speech_size = sizeof(snd_speech_sounds);
 
 SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
 
@@ -55,7 +58,7 @@ LedEffect currentEffect = nullptr;
 // *******************************************
 //  переменные и константы кнопок и состояния
 // *******************************************
-const uint8_t btn_pins[] =  {SONGBTN, BLUEBTN, ORANGEBTN};
+const uint8_t btn_pins[] =  {SONGBTN, BLUEBTN, ORANGEBTN, SPEECHBTN};
 
 // FSM состояния
 enum State {
@@ -63,9 +66,8 @@ enum State {
   STATE_IDLE,
   STATE_BLUE_FIRING,
   STATE_ORANGE_FIRING,
-  STATE_SONG_PLAYING,
-  STATE_SONG_IDLE,
-  STATE_SONG_END
+  STATE_SPEECH_PLAYING,
+  STATE_SONG_PLAYING  
 };
 State currentState = STATE_OFF;
 
@@ -76,12 +78,13 @@ int current_sound = 0;
 bool bluePressed = false;
 bool orangePressed = false;
 bool songPressed = false;
+bool speechPressed = false;
 
 // --- Антидребезг ---
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50;
-bool lastBlueState = HIGH, lastOrangeState = HIGH, lastSongState = HIGH;
-bool stableBlue = HIGH, stableOrange = HIGH, stableSong = HIGH;
+bool lastBlueState = HIGH, lastOrangeState = HIGH, lastSongState = HIGH, lastSpeechState = HIGH;
+bool stableBlue = HIGH, stableOrange = HIGH, stableSong = HIGH, stableSpeech = HIGH;
 
 
 // ******************************************
@@ -120,7 +123,7 @@ void playSound(uint8_t track) {
   }
   startSoundTime = millis();
   soundPlaying = true;
-  current_sound = track;
+  current_sound = track;  
 }
 
 void playWaitSound(uint8_t track) {
@@ -211,6 +214,36 @@ void songLight(bool start = false) {
   songLEDColorIndex += songLEDSpeed;
 }
 
+uint8_t pairIndex = 0;
+int pairIndexSpeed = 0;
+const int pairIndexDelay = 10; // скорость перемещения пар пикселов
+uint8_t colorOffset = 0;
+const uint8_t pairsLED[][2] = {{6, 7}, {5, 8},{4, 9},{3, 10},{2, 11},{1, 12}};
+const uint8_t totalPairs = 6;
+const uint8_t pairDelay = 3;   // шаг цвета (аналог скорости)
+void pairedLight(bool start = false) {
+  if (start) {
+    pairIndex = 0;
+    pairIndexSpeed = 0;      
+  }
+  pairIndexSpeed++;
+  if (pairIndexSpeed >= pairIndexDelay) {
+    FastLED.clear();
+
+    CRGB color = ColorFromPalette(RainbowColors_p, colorOffset, 255, LINEARBLEND);
+    leds[pairsLED[pairIndex][0]] = color;
+    leds[pairsLED[pairIndex][1]] = color;
+    FastLED.show();
+
+    colorOffset += pairDelay;
+    pairIndex++;
+    if (pairIndex >= totalPairs) {
+      pairIndex = 0;  // начинаем с первой пары заново
+    }
+    pairIndexSpeed = 0;
+  }
+}
+
 uint8_t shotLEDFrame = 0;
 void shotLight(uint32_t color, bool start = false) {
   if (start) {
@@ -237,7 +270,7 @@ void orangeLight(bool start = false) {
   shotLight(0xFF8000, start);
 }
 
-void updateLed(bool start = false) {
+void updateLED(bool start = false) {
   unsigned long now = millis();
   if (((now - lastLedFrameTime) > ledFrameDelay) || start) {
     lastLedFrameTime = now;
@@ -247,44 +280,54 @@ void updateLed(bool start = false) {
   }
 }
 
+void updateLEDEffect() {  
+  switch (currentState) {
+    case STATE_IDLE:           currentEffect = idleLight; break;
+    case STATE_SONG_PLAYING:   currentEffect = songLight; break;
+    case STATE_BLUE_FIRING:    currentEffect = blueLight; break;
+    case STATE_ORANGE_FIRING:  currentEffect = orangeLight; break;
+    case STATE_SPEECH_PLAYING: currentEffect = pairedLight; break;
+    default:                   currentEffect = nullptr; break; // ничего не делает
+  }
+  updateLED(true); // Запускаем новый эффект с начальной инициализацией
+}
+
 
 // ******************************************
 //            Блок обработки кнопок
 // ******************************************
 
-void setState(State newState) {
-  currentState = newState;
-  switch (currentState) {
-    case STATE_IDLE:          currentEffect = idleLight; break;
-    case STATE_SONG_PLAYING:
-    case STATE_SONG_IDLE:
-    case STATE_SONG_END:      currentEffect = songLight; break;
-    case STATE_BLUE_FIRING:   currentEffect = blueLight; break;
-    case STATE_ORANGE_FIRING: currentEffect = orangeLight; break;
-    default:                  currentEffect = nullptr; break; // ничего не делает
-  }
-  updateLed(true); // Запускаем новый эффект с начальной инициализацией
-}
-
-
 bool downButton(bool btn, bool &trigger, State newState) {
   if (btn && !trigger) {
     trigger = true;
-    setState(newState);
+    currentState = newState;
     return true;
   }
   return false;
 }
 
-bool waitUpButton(bool btn, bool &trigger, uint8_t sound, State newState) {
+void waitUpButton(bool btn, bool &trigger, uint8_t sound, State newState) {
   if (!btn && trigger) {
     trigger = false;
+    updateLEDEffect();
     playSound(sound);
-    return true;
-  } else if (!trigger && !soundPlaying) {
-    setState(newState);
+  } 
+  else if (!trigger && !soundPlaying) {      
+      currentState = newState;
+      soundPlaying = false;
   }
-  return false;
+}
+
+void waitPressedButton(bool btn, bool &trigger, uint8_t sound, State newState) {
+  if (btn && trigger) {
+    trigger = false;
+    updateLEDEffect();
+    playSound(sound);
+  }
+  else if (!btn || !soundPlaying) {    
+    currentState = newState;
+    soundPlaying = false;    
+  }
 }
 
 
@@ -294,53 +337,64 @@ bool waitUpButton(bool btn, bool &trigger, uint8_t sound, State newState) {
 void setup() {
   jqSerial.begin(9600);
 
+  randomSeed(analogRead(A0)); // Инициализация генератора случайных чисел
+
   for (uint8_t i = 0; i < sizeof(btn_pins); i++) {
     pinMode(btn_pins[i], INPUT_PULLUP);
   }
 
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
+  FastLED.showColor(0x7F0000);
     
   jqReset();
   setVolume(JQ_VOLUME);
 }
 
 void loop() {
-  updateLed();
+  updateLED();
   updateSoundPlaying();
 
   bool rawBlue    = digitalRead(BLUEBTN);
   bool rawOrange  = digitalRead(ORANGEBTN);
   bool rawSong    = digitalRead(SONGBTN);
+  bool rawSpeech    = digitalRead(SPEECHBTN);  
 
   unsigned long now = millis();
-  if (rawBlue != lastBlueState || rawOrange != lastOrangeState || rawSong != lastSongState)
+  if (rawBlue != lastBlueState || rawOrange != lastOrangeState || rawSong != lastSongState || rawSpeech != lastSpeechState)
     lastDebounceTime = now;
 
   if ((now - lastDebounceTime) > debounceDelay) {
     stableBlue   = rawBlue;
     stableOrange = rawOrange;
     stableSong   = rawSong;
+    stableSpeech = rawSpeech;
   }
 
   lastBlueState = rawBlue;
   lastOrangeState = rawOrange;
   lastSongState = rawSong;
+  lastSpeechState = rawSpeech;
 
   bool blueOn   = stableBlue == LOW;
   bool orangeOn = stableOrange == LOW;
   bool songOn   = stableSong == LOW;
+  bool speechOn = stableSpeech == LOW;
 
   switch (currentState) {
     case STATE_OFF:
       playWaitSound(SND_POWER_UP);
-      setState(STATE_IDLE);
+      currentState = STATE_IDLE;
       break;
 
     case STATE_IDLE:
+      if (downButton(songOn, songPressed, STATE_SONG_PLAYING)) break;
       if (downButton(blueOn, bluePressed, STATE_BLUE_FIRING)) break;
       if (downButton(orangeOn, orangePressed, STATE_ORANGE_FIRING)) break;
-      if (downButton(songOn, songPressed, STATE_SONG_PLAYING)) break;
-      if (!soundPlaying) playIdleSound();
+      if (downButton(speechOn, speechPressed, STATE_SPEECH_PLAYING)) break;
+      if (!soundPlaying) {
+        updateLEDEffect();
+        playIdleSound();
+      }
       break;
 
     case STATE_BLUE_FIRING:
@@ -351,21 +405,12 @@ void loop() {
       waitUpButton(orangeOn, orangePressed, SND_ORANGE_FIRE, STATE_IDLE);
       break;
 
+    case STATE_SPEECH_PLAYING:
+      waitUpButton(speechOn, speechPressed, snd_speech_sounds[random(snd_speech_size)], STATE_IDLE);
+      break;
+
     case STATE_SONG_PLAYING:
-      if (waitUpButton(songOn, songPressed, SND_SONG, STATE_SONG_IDLE))
-        setState(STATE_SONG_IDLE);
-      break;
-
-    case STATE_SONG_IDLE:
-      if (!soundPlaying)
-        songOn = true;
-      downButton(songOn, songPressed, STATE_SONG_END);
-      break;
-
-    case STATE_SONG_END:
-      if (!soundPlaying)
-        songPressed = false;
-      waitUpButton(songOn, songPressed, SND_FAKE, STATE_IDLE);
-      break;
+      waitPressedButton(songOn, songPressed, SND_SONG, STATE_IDLE);
+      break;    
   }
 }
