@@ -203,7 +203,7 @@ void idleLight(bool start = false) {
   if (start) {    
     idleBright = 15;
     idleIncBright = 1;
-	setRingPixels(initRingColor);	
+	setRingPixels(idleRingColor);	
   } 
 
     // плавный реверс направления
