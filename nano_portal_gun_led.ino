@@ -26,11 +26,10 @@
 #define SND_IDLE        2
 #define SND_BLUE_FIRE   3
 #define SND_ORANGE_FIRE 4
-#define SND_POWER_DOWN  5
-#define SND_SONG        6
+#define SND_SONG        5
 
-const unsigned long snd_duration_ms[] = {0, 1358, 32809, 1332, 1488, 1776, 175046};
-const uint8_t snd_speech_sounds[] = {3, 4, 5};
+const unsigned long snd_duration_ms[] = {0, 1358, 32809, 1332, 1488, 175046, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702};
+const uint8_t snd_speech_sounds[] = {6, 7, 8, 9, 10, 11, 12, 13};
 int snd_speech_size = sizeof(snd_speech_sounds);
 
 SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
@@ -39,11 +38,18 @@ SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
 // ******************************************
 //         переменные и константы LED
 // ******************************************
-#define LED_NUM 13    // количество светодиодов (0 центр, 1-12 круг)
+#define LED_NUM 14    // количество светодиодов (0-1 центр, 2-13 круг)
+#define LED_RING_MIN 2
+#define LED_RING_MAX 13
 
 #define LED_IDLE_MIN 10
 #define LED_IDLE_MAX 150
 #define LED_SHOT_SWITCH 66
+
+#define COLOR_BLACK 0x00000
+#define COLOR_BLUE 0x0000FF
+#define COLOR_ORANGE 0xFF8000
+#define COLOR_RED 0x7F0000
 
 CRGB leds[LED_NUM];
 
@@ -159,6 +165,17 @@ void updateSoundPlaying() {
 // ******************************************
 //                  Блок LED
 // ******************************************
+
+void setCenterPixel(uint32_t color) {
+  leds[0] = color;
+  leds[1] = color;
+}
+
+void setRingPixels(uint32_t color) {
+  for (uint8_t i = LED_RING_MIN; i <= LED_RING_MAX; i++) leds[i] = color;
+}
+
+
 // таблица гамма-коррекции sRGB
 const uint8_t gamma_table[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -179,12 +196,14 @@ const uint8_t gamma_table[] PROGMEM = {
   0xDE, 0xE0, 0xE2, 0xE5, 0xE7, 0xE9, 0xEB, 0xED, 0xEF, 0xF2, 0xF4, 0xF6, 0xF8, 0xFA, 0xFD, 0xFF
 };
 
+uint32_t idleRingColor = COLOR_BLACK;
 uint8_t idleBright = 0;
 int8_t idleIncBright = 1;
 void idleLight(bool start = false) {
   if (start) {    
     idleBright = 15;
     idleIncBright = 1;
+	setRingPixels(initRingColor);	
   } 
 
     // плавный реверс направления
@@ -192,9 +211,7 @@ void idleLight(bool start = false) {
     idleIncBright = -idleIncBright;
   }
 
-  for (uint8_t i = 0; i < LED_NUM; i++) {
-    leds[i].setRGB(0, pgm_read_byte(&gamma_table[idleBright]), 0);
-  }
+  setCenterPixel(pgm_read_byte(&gamma_table[idleBright])); // синее мерцание
   
   FastLED.show();
   idleBright += idleIncBright;
@@ -218,13 +235,14 @@ uint8_t pairIndex = 0;
 int pairIndexSpeed = 0;
 const int pairIndexDelay = 10; // скорость перемещения пар пикселов
 uint8_t colorOffset = 0;
-const uint8_t pairsLED[][2] = {{6, 7}, {5, 8},{4, 9},{3, 10},{2, 11},{1, 12}};
+const uint8_t pairsLED[][2] = {{7, 8}, {6, 9},{5, 10},{4, 11},{3, 12},{2, 13}};
 const uint8_t totalPairs = 6;
 const uint8_t pairDelay = 3;   // шаг цвета (аналог скорости)
 void pairedLight(bool start = false) {
   if (start) {
     pairIndex = 0;
-    pairIndexSpeed = 0;      
+    pairIndexSpeed = 0;
+	setCenterPixel(COLOR_BLACK);
   }
   pairIndexSpeed++;
   if (pairIndexSpeed >= pairIndexDelay) {
@@ -251,11 +269,11 @@ void shotLight(uint32_t color, bool start = false) {
   }
 
   if (shotLEDFrame <= LED_SHOT_SWITCH) {
-    leds[0] = color;
-    for (uint8_t i = 1; i < LED_NUM; i++) leds[i] = 0x00000;
+    setCenterPixel(color);
+    setRingPixels(COLOR_BLACK);
   } else {
-    leds[0] = 0x00000;
-    for (uint8_t i = 1; i < LED_NUM; i++) leds[i] = color;
+    setCenterPixel(COLOR_BLACK);
+	setRingPixels(color);
   }
 
   FastLED.show();
@@ -263,11 +281,11 @@ void shotLight(uint32_t color, bool start = false) {
 }
 
 void blueLight(bool start = false) {
-  shotLight(0x0000FF, start);
+  shotLight(COLOR_BLUE, start);
 }
 
 void orangeLight(bool start = false) {
-  shotLight(0xFF8000, start);
+  shotLight(COLOR_ORANGE, start);
 }
 
 void updateLED(bool start = false) {
@@ -283,11 +301,26 @@ void updateLED(bool start = false) {
 void updateLEDEffect() {  
   switch (currentState) {
     case STATE_IDLE:           currentEffect = idleLight; break;
-    case STATE_SONG_PLAYING:   currentEffect = songLight; break;
-    case STATE_BLUE_FIRING:    currentEffect = blueLight; break;
-    case STATE_ORANGE_FIRING:  currentEffect = orangeLight; break;
-    case STATE_SPEECH_PLAYING: currentEffect = pairedLight; break;
-    default:                   currentEffect = nullptr; break; // ничего не делает
+    case STATE_SONG_PLAYING:   
+        currentEffect = songLight; 
+        idleRingColor = COLOR_BLACK;
+        break;
+    case STATE_BLUE_FIRING:
+        currentEffect = blueLight; 
+        idleRingColor = COLOR_BLUE;
+        break;
+    case STATE_ORANGE_FIRING:
+        currentEffect = orangeLight; 
+		idleRingColor = COLOR_ORANGE;
+		break;
+    case STATE_SPEECH_PLAYING: 
+		currentEffect = pairedLight;
+		idleRingColor = COLOR_BLACK;
+		break;
+    default: 
+	    currentEffect = nullptr; 
+		idleRingColor = COLOR_BLACK;
+		break; // ничего не делает
   }
   updateLED(true); // Запускаем новый эффект с начальной инициализацией
 }
@@ -344,9 +377,9 @@ void setup() {
   }
 
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
-  FastLED.showColor(0x7F0000);
+  FastLED.showColor(COLOR_RED);
     
-  jqReset();
+  delay(1000);
   setVolume(JQ_VOLUME);
 }
 
@@ -357,7 +390,7 @@ void loop() {
   bool rawBlue    = digitalRead(BLUEBTN);
   bool rawOrange  = digitalRead(ORANGEBTN);
   bool rawSong    = digitalRead(SONGBTN);
-  bool rawSpeech    = digitalRead(SPEECHBTN);  
+  bool rawSpeech  = digitalRead(SPEECHBTN);  
 
   unsigned long now = millis();
   if (rawBlue != lastBlueState || rawOrange != lastOrangeState || rawSong != lastSongState || rawSpeech != lastSpeechState)
@@ -383,6 +416,7 @@ void loop() {
   switch (currentState) {
     case STATE_OFF:
       playWaitSound(SND_POWER_UP);
+	  idleRingColor = COLOR_BLACK;
       currentState = STATE_IDLE;
       break;
 
