@@ -13,8 +13,8 @@
 // --- Пины кнопок ---
 #define BLUEBTN   6
 #define ORANGEBTN 7
-#define SONGBTN   8
-#define SPEECHBTN 9
+#define SPEECHBTN 8
+#define SONGBTN   9
 
 // ******************************************
 //        переменные и константы аудио
@@ -23,13 +23,12 @@
 
 #define SND_FAKE        0 
 #define SND_POWER_UP    1
-#define SND_IDLE        2
-#define SND_BLUE_FIRE   3
-#define SND_ORANGE_FIRE 4
-#define SND_SONG        5
+#define SND_BLUE_FIRE   2
+#define SND_ORANGE_FIRE 3
+#define SND_SONG        4
 
-const unsigned long snd_duration_ms[] = {0, 1358, 32809, 1332, 1488, 175046, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702};
-const uint8_t snd_speech_sounds[] = {6, 7, 8, 9, 10, 11, 12, 13};
+const unsigned long snd_duration_ms[] = {0, 1358, 1332, 1488, 175046, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702, 3892, 3056, 3683, 5433, 1854, 1436};
+const uint8_t snd_speech_sounds[] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 int snd_speech_size = sizeof(snd_speech_sounds);
 
 SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
@@ -132,6 +131,14 @@ void playSound(uint8_t track) {
   current_sound = track;  
 }
 
+void stopSound() {
+  uint8_t cmd1[] = {0x7E, 0x02, 0x0E, 0xEF};
+  sendJQCommand(cmd1, sizeof(cmd1));      
+  startSoundTime = millis();
+  soundPlaying = true;
+  current_sound = -1; // зацикленный звук
+}
+
 void playWaitSound(uint8_t track) {
   if (track > 0) {
     uint8_t cmd1[] = {0x7E, 0x03, 0x11, 0x04, 0xEF};
@@ -143,16 +150,16 @@ void playWaitSound(uint8_t track) {
   delay(snd_duration_ms[track]);
 }
 
-void playIdleSound() {
-  uint8_t cmd1[] = {0x7E, 0x03, 0x11, 0x03, 0xEF};
-  sendJQCommand(cmd1, sizeof(cmd1));
-  delay(150);
-  uint8_t cmd2[] = {0x7E, 0x04, 0x03, 0x00, SND_IDLE, 0xEF};
-  sendJQCommand(cmd2, sizeof(cmd2));
-  startSoundTime = millis();
-  soundPlaying = true;
-  current_sound = -1; // зацикленный звук
-}
+// void playIdleSound() {
+//   uint8_t cmd1[] = {0x7E, 0x03, 0x11, 0x03, 0xEF};
+//   sendJQCommand(cmd1, sizeof(cmd1));
+//   delay(150);
+//   uint8_t cmd2[] = {0x7E, 0x04, 0x03, 0x00, SND_IDLE, 0xEF};
+//   sendJQCommand(cmd2, sizeof(cmd2));
+//   startSoundTime = millis();
+//   soundPlaying = true;
+//   current_sound = -1; // зацикленный звук
+// }
 
 void updateSoundPlaying() {
   unsigned long now = millis();
@@ -211,7 +218,8 @@ void idleLight(bool start = false) {
     idleIncBright = -idleIncBright;
   }
 
-  setCenterPixel(pgm_read_byte(&gamma_table[idleBright])); // синее мерцание
+  leds[0].setRGB(0, pgm_read_byte(&gamma_table[idleBright]), 0);
+  leds[1].setRGB(0, pgm_read_byte(&gamma_table[idleBright]), 0);
   
   FastLED.show();
   idleBright += idleIncBright;
@@ -427,7 +435,7 @@ void loop() {
       if (downButton(speechOn, speechPressed, STATE_SPEECH_PLAYING)) break;
       if (!soundPlaying) {
         updateLEDEffect();
-        playIdleSound();
+        stopSound();     
       }
       break;
 
