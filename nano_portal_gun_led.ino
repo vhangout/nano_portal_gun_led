@@ -27,7 +27,7 @@
 #define SND_ORANGE_FIRE 3
 #define SND_SONG        4
 
-const unsigned long snd_duration_ms[] = {0, 1358, 1332, 1488, 175046, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702, 3892, 3056, 3683, 5433, 1854, 1436};
+const unsigned long snd_duration_ms[] = {0, 1358, 1332, 1488, 175046, 5485, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702, 3892, 3056, 3683, 5433, 1854, 1436};
 const uint8_t snd_speech_sounds[] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 int snd_speech_size = sizeof(snd_speech_sounds);
 
