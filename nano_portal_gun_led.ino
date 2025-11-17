@@ -28,7 +28,7 @@
 #define SND_SONG        4
 
 const unsigned long snd_duration_ms[] = {0, 1358, 1332, 1488, 175046, 5485, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702, 3892, 3056, 3683, 5433, 1854, 1436};
-const uint8_t snd_speech_sounds[] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+uint8_t snd_speech_sounds[] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 int snd_speech_size = sizeof(snd_speech_sounds);
 
 SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
@@ -160,6 +160,17 @@ void playWaitSound(uint8_t track) {
 //   soundPlaying = true;
 //   current_sound = -1; // зацикленный звук
 // }
+
+void speech_shuffle() {
+  for (uint16_t i = snd_speech_size - 1; i > 0; i--) {
+    uint16_t j = random(i + 1);  // случайный индекс от 0 до i включительно
+
+    // обмен элементов
+    uint8_t temp = snd_speech_sounds[i];
+    snd_speech_sounds[i] = snd_speech_sounds[j];
+    snd_speech_sounds[j] = temp;
+  }
+}
 
 void updateSoundPlaying() {
   unsigned long now = millis();
@@ -379,6 +390,7 @@ void setup() {
   jqSerial.begin(9600);
 
   randomSeed(analogRead(A0)); // Инициализация генератора случайных чисел
+  speech_shuffle();
 
   for (uint8_t i = 0; i < sizeof(btn_pins); i++) {
     pinMode(btn_pins[i], INPUT_PULLUP);
