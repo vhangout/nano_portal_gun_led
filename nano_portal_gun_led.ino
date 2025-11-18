@@ -29,7 +29,8 @@
 
 const unsigned long snd_duration_ms[] = {0, 1358, 1332, 1488, 175046, 5485, 4048, 2403, 3056, 2089, 3134, 1880, 4440, 4702, 3892, 3056, 3683, 5433, 1854, 1436};
 uint8_t snd_speech_sounds[] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-int snd_speech_size = sizeof(snd_speech_sounds);
+uint8_t snd_speech_size = sizeof(snd_speech_sounds);
+uint8_t snd_speech_current = 0;
 
 SoftwareSerial jqSerial(JQ_RX, JQ_TX); // RX, TX
 
@@ -170,6 +171,7 @@ void speech_shuffle() {
     snd_speech_sounds[i] = snd_speech_sounds[j];
     snd_speech_sounds[j] = temp;
   }
+  uint8_t snd_speech_current = 0;
 }
 
 void updateSoundPlaying() {
@@ -459,8 +461,12 @@ void loop() {
       waitUpButton(orangeOn, orangePressed, SND_ORANGE_FIRE, STATE_IDLE);
       break;
 
-    case STATE_SPEECH_PLAYING:
-      waitUpButton(speechOn, speechPressed, snd_speech_sounds[random(snd_speech_size)], STATE_IDLE);
+    case STATE_SPEECH_PLAYING:    
+      waitUpButton(speechOn, speechPressed, snd_speech_sounds[snd_speech_current], STATE_IDLE);
+      snd_speech_current++;
+      if (snd_speech_current == snd_speech_size) {
+        speech_shuffle();
+      }
       break;
 
     case STATE_SONG_PLAYING:
