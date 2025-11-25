@@ -171,7 +171,7 @@ void speech_shuffle() {
     snd_speech_sounds[i] = snd_speech_sounds[j];
     snd_speech_sounds[j] = temp;
   }
-  uint8_t snd_speech_current = 0;
+  snd_speech_current = 0;  
 }
 
 void updateSoundPlaying() {
@@ -366,7 +366,13 @@ void waitUpButton(bool btn, bool &trigger, uint8_t sound, State newState) {
     updateLEDEffect();
     playSound(sound);
   } 
-  else if (!trigger && !soundPlaying) {      
+  else if (!trigger && !soundPlaying) {
+      if (currentState == STATE_SPEECH_PLAYING) {
+        snd_speech_current++;
+        if (snd_speech_current == snd_speech_size) {
+          speech_shuffle();
+        }
+      }
       currentState = newState;
       soundPlaying = false;
   }
@@ -463,10 +469,6 @@ void loop() {
 
     case STATE_SPEECH_PLAYING:    
       waitUpButton(speechOn, speechPressed, snd_speech_sounds[snd_speech_current], STATE_IDLE);
-      snd_speech_current++;
-      if (snd_speech_current == snd_speech_size) {
-        speech_shuffle();
-      }
       break;
 
     case STATE_SONG_PLAYING:
